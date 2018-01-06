@@ -6,9 +6,10 @@ metadata:
     name: web
     app: demo
 spec:
+  hostNetwork: true
   containers:
     - name: web
-      image: janakiramm/web
+      image: bryanmunich/web:v1
       ports:
         - containerPort: 5000
           name: http

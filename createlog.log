@@ -1,0 +1,312 @@
+bryanleekw@nb1:~/Projects/kubernetes-101/Kubernetes$ minikube start
+Starting local Kubernetes v1.8.0 cluster...
+Starting VM...
+Getting VM IP address...
+Moving files into cluster...
+Setting up certs...
+Connecting to cluster...
+Setting up kubeconfig...
+Starting cluster components...
+Kubectl is now configured to use the cluster.
+Loading cached images from config file.
+bryanleekw@nb1:~/Projects/kubernetes-101/Kubernetes$ kubectl create -f db-pod.yml
+pod "redis" created
+bryanleekw@nb1:~/Projects/kubernetes-101/Kubernetes$ kubectl create -f db-svc.yml
+service "redis" created
+bryanleekw@nb1:~/Projects/kubernetes-101/Kubernetes$ kubectl create -f web-pod.yml
+pod "web" created
+bryanleekw@nb1:~/Projects/kubernetes-101/Kubernetes$ kubectl create -f web-svc.yml
+service "web" created
+bryanleekw@nb1:~/Projects/kubernetes-101/Kubernetes$ kubectl create -f web-rc.yml
+replicationcontroller "web" created
+bryanleekw@nb1:~/Projects/kubernetes-101/Kubernetes$ kubectl get pods
+NAME                     READY     STATUS         RESTARTS   AGE
+my-web-5f796bf89-c495j   0/1       ErrImagePull   0          1d
+redis                    1/1       Running        0          54s
+web                      1/1       Running        0          54s
+web-hr4jv                1/1       Running        0          50s
+bryanleekw@nb1:~/Projects/kubernetes-101/Kubernetes$ kubectl get svc
+NAME         TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)        AGE
+kubernetes   ClusterIP   10.96.0.1        <none>        443/TCP        1d
+my-web       NodePort    10.101.122.124   <none>        80:31992/TCP   1d
+redis        ClusterIP   10.99.13.65      <none>        6379/TCP       56s
+web          NodePort    10.102.78.51     <none>        80:30947/TCP   55s
+bryanleekw@nb1:~/Projects/kubernetes-101/Kubernetes$ kubectl describe svc web
+Name:                     web
+Namespace:                default
+Labels:                   app=demo
+                          name=web
+Annotations:              <none>
+Selector:                 name=web
+Type:                     NodePort
+IP:                       10.102.78.51
+Port:                     <unset>  80/TCP
+TargetPort:               5000/TCP
+NodePort:                 <unset>  30947/TCP
+Endpoints:                172.17.0.6:5000,172.17.0.7:5000
+Session Affinity:         None
+External Traffic Policy:  Cluster
+Events:                   <none>
+bryanleekw@nb1:~/Projects/kubernetes-101/Kubernetes$ kubectl get nodes
+NAME       STATUS    ROLES     AGE       VERSION
+minikube   Ready     <none>    1d        v1.8.0
+bryanleekw@nb1:~/Projects/kubernetes-101/Kubernetes$ curl localhost:5000
+curl: (7) Failed to connect to localhost port 5000: Connection refused
+bryanleekw@nb1:~/Projects/kubernetes-101/Kubernetes$ curl localhost:80
+curl: (7) Failed to connect to localhost port 80: Connection refused
+bryanleekw@nb1:~/Projects/kubernetes-101/Kubernetes$ vi web-pod.yml 
+bryanleekw@nb1:~/Projects/kubernetes-101/Kubernetes$ eval $(minikube docker-env)
+bryanleekw@nb1:~/Projects/kubernetes-101/Kubernetes$ docker images
+REPOSITORY                                             TAG                 IMAGE ID            CREATED             SIZE
+bryanmunich/webnew                                     latest              72a89934aba4        14 hours ago        95.8MB
+192.168.99.100:80/myweb                                latest              3f55de602b18        36 hours ago        177MB
+redis                                                  latest              1e70071f4af4        3 weeks ago         107MB
+gcr.io/google_containers/kubernetes-dashboard-amd64    v1.8.0              55dbc28356f2        5 weeks ago         119MB
+gcr.io/k8s-minikube/storage-provisioner                v1.8.0              4689081edb10        8 weeks ago         80.8MB
+gcr.io/k8s-minikube/storage-provisioner                v1.8.1              4689081edb10        8 weeks ago         80.8MB
+gcr.io/google_containers/k8s-dns-sidecar-amd64         1.14.5              fed89e8b4248        3 months ago        41.8MB
+gcr.io/google_containers/k8s-dns-kube-dns-amd64        1.14.5              512cd7425a73        3 months ago        49.4MB
+gcr.io/google_containers/k8s-dns-dnsmasq-nanny-amd64   1.14.5              459944ce8cc4        3 months ago        41.4MB
+gcr.io/google_containers/kubernetes-dashboard-amd64    v1.6.3              691a82db1ecd        5 months ago        139MB
+gcr.io/google-containers/kube-addon-manager            v6.4-beta.2         0a951668696f        6 months ago        79.2MB
+gcr.io/google_containers/pause-amd64                   3.0                 99e59f495ffa        20 months ago       747kB
+bryanleekw@nb1:~/Projects/kubernetes-101/Kubernetes$ ls -ltr
+total 20
+-rw-r--r-- 1 bryanleekw bryanleekw 203 Jan  4 08:14 db-svc.yml
+-rw-r--r-- 1 bryanleekw bryanleekw 369 Jan  5 08:26 web-rc.yml
+-rw-r--r-- 1 bryanleekw bryanleekw 243 Jan  5 08:27 web-pod.yml
+-rw-r--r-- 1 bryanleekw bryanleekw 203 Jan  5 08:27 web-svc.yml
+-rw-r--r-- 1 bryanleekw bryanleekw 231 Jan  5 08:27 db-pod.yml
+bryanleekw@nb1:~/Projects/kubernetes-101/Kubernetes$ cat web*.yml
+apiVersion: "v1"
+kind: Pod
+metadata:
+  name: web
+  labels:
+    name: web
+    app: demo
+spec:
+  containers:
+    - name: web
+      image: bryanmunich/webnew
+      ports:
+        - containerPort: 5000
+          name: http
+          protocol: TCP
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: web
+  labels:
+    name: web
+    app: demo
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        name: web
+    spec:
+      containers:
+        - name: web
+          image: bryanmunich/webnew
+          ports:
+            - containerPort: 5000
+              name: http
+              protocol: TCP
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  labels:
+    name: web
+    app: demo
+spec:
+  selector:
+    name: web 
+  type: NodePort
+  ports:
+   - port: 80
+     targetPort: 5000
+     protocol: TCP
+bryanleekw@nb1:~/Projects/kubernetes-101/Kubernetes$ kubectl logs my-web-5f796bf89-c495j
+AH00558: httpd: Could not reliably determine the server's fully qualified domain name, using 172.17.0.4. Set the 'ServerName' directive globally to suppress this message
+AH00558: httpd: Could not reliably determine the server's fully qualified domain name, using 172.17.0.4. Set the 'ServerName' directive globally to suppress this message
+[Wed Jan 03 14:52:15.350919 2018] [mpm_event:notice] [pid 1:tid 139825889937280] AH00489: Apache/2.4.29 (Unix) configured -- resuming normal operations
+[Wed Jan 03 14:52:15.350993 2018] [core:notice] [pid 1:tid 139825889937280] AH00094: Command line: 'httpd -D FOREGROUND'
+172.17.0.1 - - [03/Jan/2018:14:52:59 +0000] "GET / HTTP/1.1" 200 17
+bryanleekw@nb1:~/Projects/kubernetes-101/Kubernetes$ kubectl get pods
+NAME                     READY     STATUS             RESTARTS   AGE
+my-web-5f796bf89-c495j   0/1       ImagePullBackOff   0          1d
+redis                    1/1       Running            0          15m
+web                      1/1       Running            0          15m
+web-hr4jv                1/1       Running            0          15m
+bryanleekw@nb1:~/Projects/kubernetes-101/Kubernetes$ kubectl describe pods my-web-5f796bf89-c495j
+Name:           my-web-5f796bf89-c495j
+Namespace:      default
+Node:           minikube/192.168.99.100
+Start Time:     Wed, 03 Jan 2018 22:52:14 +0800
+Labels:         pod-template-hash=193526945
+                run=my-web
+Annotations:    kubernetes.io/created-by={"kind":"SerializedReference","apiVersion":"v1","reference":{"kind":"ReplicaSet","namespace":"default","name":"my-web-5f796bf89","uid":"afb6f69c-f095-11e7-9de0-080027302ed5","...
+Status:         Running
+IP:             172.17.0.2
+Controlled By:  ReplicaSet/my-web-5f796bf89
+Containers:
+  my-web:
+    Container ID:   docker://4a69f9aea721506c3f1fe60f1b7e7d171217182cf60f2955fdc7a41f81a1d90f
+    Image:          192.168.99.100:80/myweb
+    Image ID:       docker-pullable://192.168.99.100:80/myweb@sha256:8e79b39e50dba9fc733260bede99f43655faab6ddfd6e0123b78f31757c9ded7
+    Port:           80/TCP
+    State:          Waiting
+      Reason:       ImagePullBackOff
+    Last State:     Terminated
+      Reason:       Error
+      Exit Code:    255
+      Started:      Wed, 03 Jan 2018 22:52:15 +0800
+      Finished:     Fri, 05 Jan 2018 08:30:53 +0800
+    Ready:          False
+    Restart Count:  0
+    Environment:    <none>
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from default-token-4f4ds (ro)
+Conditions:
+  Type           Status
+  Initialized    True 
+  Ready          False 
+  PodScheduled   True 
+Volumes:
+  default-token-4f4ds:
+    Type:        Secret (a volume populated by a Secret)
+    SecretName:  default-token-4f4ds
+    Optional:    false
+QoS Class:       BestEffort
+Node-Selectors:  <none>
+Tolerations:     <none>
+Events:
+  Type     Reason                 Age                From               Message
+  ----     ------                 ----               ----               -------
+  Normal   Scheduled              1d                 default-scheduler  Successfully assigned my-web-5f796bf89-c495j to minikube
+  Normal   SuccessfulMountVolume  1d                 kubelet, minikube  MountVolume.SetUp succeeded for volume "default-token-4f4ds"
+  Normal   Pulling                1d                 kubelet, minikube  pulling image "192.168.99.100:80/myweb"
+  Normal   Pulled                 1d                 kubelet, minikube  Successfully pulled image "192.168.99.100:80/myweb"
+  Normal   Created                1d                 kubelet, minikube  Created container
+  Normal   Started                1d                 kubelet, minikube  Started container
+  Normal   SandboxChanged         17m                kubelet, minikube  Pod sandbox changed, it will be killed and re-created.
+  Normal   SuccessfulMountVolume  17m                kubelet, minikube  MountVolume.SetUp succeeded for volume "default-token-4f4ds"
+  Normal   Pulling                16m (x3 over 17m)  kubelet, minikube  pulling image "192.168.99.100:80/myweb"
+  Warning  Failed                 16m (x3 over 17m)  kubelet, minikube  Failed to pull image "192.168.99.100:80/myweb": rpc error: code = Unknown desc = Error response from daemon: Get http://192.168.99.100:80/v2/: dial tcp 192.168.99.100:80: getsockopt: connection refused
+  Warning  BackOff                15m (x5 over 16m)  kubelet, minikube  Back-off restarting failed container
+  Normal   BackOff                7m (x25 over 17m)  kubelet, minikube  Back-off pulling image "192.168.99.100:80/myweb"
+  Warning  FailedSync             2m (x71 over 17m)  kubelet, minikube  Error syncing pod
+bryanleekw@nb1:~/Projects/kubernetes-101/Kubernetes$ 
+bryanleekw@nb1:~/Projects/kubernetes-101/Kubernetes$ docker images
+REPOSITORY                                             TAG                 IMAGE ID            CREATED             SIZE
+bryanmunich/webnew                                     latest              72a89934aba4        15 hours ago        95.8MB
+192.168.99.100:80/myweb                                latest              3f55de602b18        36 hours ago        177MB
+redis                                                  latest              1e70071f4af4        3 weeks ago         107MB
+gcr.io/google_containers/kubernetes-dashboard-amd64    v1.8.0              55dbc28356f2        5 weeks ago         119MB
+gcr.io/k8s-minikube/storage-provisioner                v1.8.0              4689081edb10        8 weeks ago         80.8MB
+gcr.io/k8s-minikube/storage-provisioner                v1.8.1              4689081edb10        8 weeks ago         80.8MB
+gcr.io/google_containers/k8s-dns-sidecar-amd64         1.14.5              fed89e8b4248        3 months ago        41.8MB
+gcr.io/google_containers/k8s-dns-kube-dns-amd64        1.14.5              512cd7425a73        3 months ago        49.4MB
+gcr.io/google_containers/k8s-dns-dnsmasq-nanny-amd64   1.14.5              459944ce8cc4        3 months ago        41.4MB
+gcr.io/google_containers/kubernetes-dashboard-amd64    v1.6.3              691a82db1ecd        5 months ago        139MB
+gcr.io/google-containers/kube-addon-manager            v6.4-beta.2         0a951668696f        6 months ago        79.2MB
+gcr.io/google_containers/pause-amd64                   3.0                 99e59f495ffa        20 months ago       747kB
+bryanleekw@nb1:~/Projects/kubernetes-101/Kubernetes$ 
+
+
+
+
+
+
+
+
+
+
+
+
+bryanleekw@nb1:~/Projects/kubernetes-101/Kubernetes$ cat web-pod.yml 
+apiVersion: "v1"
+kind: Pod
+metadata:
+  name: web
+  labels:
+    name: web
+    app: demo
+spec:
+  containers:
+    - name: web
+      image: bryanmunich/web:v1
+      ports:
+        - containerPort: 5000
+          name: http
+          protocol: TCP
+bryanleekw@nb1:~/Projects/kubernetes-101/Kubernetes$ kubectl describe pods my-web-5f796bf89-c495j
+Name:           my-web-5f796bf89-c495j
+Namespace:      default
+Node:           minikube/192.168.99.100
+Start Time:     Wed, 03 Jan 2018 22:52:14 +0800
+Labels:         pod-template-hash=193526945
+                run=my-web
+Annotations:    kubernetes.io/created-by={"kind":"SerializedReference","apiVersion":"v1","reference":{"kind":"ReplicaSet","namespace":"default","name":"my-web-5f796bf89","uid":"afb6f69c-f095-11e7-9de0-080027302ed5","...
+Status:         Running
+IP:             172.17.0.5
+Controlled By:  ReplicaSet/my-web-5f796bf89
+Containers:
+  my-web:
+    Container ID:   docker://4a69f9aea721506c3f1fe60f1b7e7d171217182cf60f2955fdc7a41f81a1d90f
+    Image:          192.168.99.100:80/myweb
+    Image ID:       docker-pullable://192.168.99.100:80/myweb@sha256:8e79b39e50dba9fc733260bede99f43655faab6ddfd6e0123b78f31757c9ded7
+    Port:           80/TCP
+    State:          Waiting
+      Reason:       ImagePullBackOff
+    Last State:     Terminated
+      Reason:       Error
+      Exit Code:    255
+      Started:      Wed, 03 Jan 2018 22:52:15 +0800
+      Finished:     Fri, 05 Jan 2018 08:30:53 +0800
+    Ready:          False
+    Restart Count:  0
+    Environment:    <none>
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from default-token-4f4ds (ro)
+Conditions:
+  Type           Status
+  Initialized    True 
+  Ready          False 
+  PodScheduled   True 
+Volumes:
+  default-token-4f4ds:
+    Type:        Secret (a volume populated by a Secret)
+    SecretName:  default-token-4f4ds
+    Optional:    false
+QoS Class:       BestEffort
+Node-Selectors:  <none>
+Tolerations:     <none>
+Events:
+  Type     Reason                 Age                 From               Message
+  ----     ------                 ----                ----               -------
+  Normal   Scheduled              1d                  default-scheduler  Successfully assigned my-web-5f796bf89-c495j to minikube
+  Normal   SuccessfulMountVolume  1d                  kubelet, minikube  MountVolume.SetUp succeeded for volume "default-token-4f4ds"
+  Normal   Pulling                1d                  kubelet, minikube  pulling image "192.168.99.100:80/myweb"
+  Normal   Pulled                 1d                  kubelet, minikube  Successfully pulled image "192.168.99.100:80/myweb"
+  Normal   Created                1d                  kubelet, minikube  Created container
+  Normal   Started                1d                  kubelet, minikube  Started container
+  Normal   SuccessfulMountVolume  6h                  kubelet, minikube  MountVolume.SetUp succeeded for volume "default-token-4f4ds"
+  Normal   SandboxChanged         6h                  kubelet, minikube  Pod sandbox changed, it will be killed and re-created.
+  Normal   Pulling                6h (x3 over 6h)     kubelet, minikube  pulling image "192.168.99.100:80/myweb"
+  Warning  Failed                 6h (x3 over 6h)     kubelet, minikube  Failed to pull image "192.168.99.100:80/myweb": rpc error: code = Unknown desc = Error response from daemon: Get http://192.168.99.100:80/v2/: dial tcp 192.168.99.100:80: getsockopt: connection refused
+  Warning  BackOff                6h (x5 over 6h)     kubelet, minikube  Back-off restarting failed container
+  Normal   BackOff                5h (x133 over 6h)   kubelet, minikube  Back-off pulling image "192.168.99.100:80/myweb"
+  Warning  FailedSync             5h (x184 over 6h)   kubelet, minikube  Error syncing pod
+  Normal   SuccessfulMountVolume  31m                 kubelet, minikube  MountVolume.SetUp succeeded for volume "default-token-4f4ds"
+  Normal   SandboxChanged         31m                 kubelet, minikube  Pod sandbox changed, it will be killed and re-created.
+  Normal   Pulling                29m (x4 over 31m)   kubelet, minikube  pulling image "192.168.99.100:80/myweb"
+  Warning  Failed                 29m (x4 over 31m)   kubelet, minikube  Failed to pull image "192.168.99.100:80/myweb": rpc error: code = Unknown desc = Error response from daemon: Get http://192.168.99.100:80/v2/: dial tcp 192.168.99.100:80: getsockopt: connection refused
+  Normal   BackOff                16m (x63 over 31m)  kubelet, minikube  Back-off pulling image "192.168.99.100:80/myweb"
+  Warning  FailedSync             1m (x137 over 31m)  kubelet, minikube  Error syncing pod
+bryanleekw@nb1:~/Projects/kubernetes-101/Kubernetes$ 
+
+
